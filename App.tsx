@@ -1,17 +1,61 @@
 import { Button } from "@rneui/themed/dist/Button";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { ScrollView, TouchableOpacity } from "react-native";
 import { SafeAreaView, StyleSheet, Text, TextInput, View } from "react-native";
 import { supabase } from "./services/supabase";
 
 export default function App() {
   const [newTask, setNewTask] = useState("");
+  const [tasks, setTasks] = useState([]);
+
+  const fetchTasks = async () => {
+    const { data, error } = await supabase.from("tasks").select("*");
+
+    if (error) {
+      console.error(error);
+    } else {
+      setTasks(data);
+    }
+  };
 
   const handleAddTask = async (task: string) => {
     const { data, error } = await supabase
       .from("tasks")
       .insert({ task, completed: false });
+
+    if (error) {
+      console.error(error);
+    } else {
+      await fetchTasks();
+    }
   };
+
+  const deleteTask = async (id: number) => {
+    const { error } = await supabase.from("tasks").delete().eq("id", id);
+
+    if (error) {
+      console.error(error);
+    } else {
+      await fetchTasks();
+    }
+  };
+
+  const updateTask = async (id: number, completed: boolean) => {
+    const { error } = await supabase
+      .from("tasks")
+      .update({ completed })
+      .eq("id", id);
+
+    if (error) {
+      console.error(error);
+    } else {
+      await fetchTasks();
+    }
+  };
+
+  useEffect(() => {
+    fetchTasks();
+  }, []);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -31,11 +75,21 @@ export default function App() {
         </TouchableOpacity>
       </View>
       <ScrollView>
-        <View style={styles.task}>
-          <Text style={(styles.textTask, styles.completed)}>Estudar React</Text>
-          <Button title={"Concluir"}></Button>
-          <Button title={"Excluir"}></Button>
-        </View>
+        {tasks.map((task) => (
+          <View style={styles.task} key={task.id}>
+            <Text style={(styles.textTask, task.completed && styles.completed)}>
+              {task.task}
+            </Text>
+            <Button
+              title={"Concluir"}
+              onPress={() => updateTask(task.id, !task.completed)}
+            ></Button>
+            <Button
+              title={"Excluir"}
+              onPress={() => deleteTask(task.id)}
+            ></Button>
+          </View>
+        ))}
       </ScrollView>
     </SafeAreaView>
   );
